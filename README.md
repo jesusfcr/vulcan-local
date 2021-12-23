@@ -95,6 +95,8 @@ Scanning the checks defined in vulcan.yaml
 vulcan-local -c vulcan.yaml
 ```
 
+NOTE: This application does not handle authentication in private registries
+instead it assumes the current docker client is already authenticated in the required registries.
 If the check images are from private registries first login into the registry.
 
 ```sh
@@ -124,15 +126,19 @@ vulcan-local -t .
 
 ## Docker usage
 
-NOTE: This application does not handle authentication in private registries,
-instead it assumes the current docker client is already authenticated in the required registries.
-For that reason this docker usage is mainly intended when pulling check images from public registries.
+Using the existing docker image:
 
-Building
+```sh
+docker pull containers.mpi-internal.com/spt-security/vulcan-local:latest
+```
+
+Building your local docker image:
 
 ```sh
 docker build . -t vulcan-local
 ```
+
+In the following examples the local image reference `vulcan-local` will e used.
 
 Start the target application
 
