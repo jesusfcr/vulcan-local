@@ -10,7 +10,7 @@ This tool is under active development and for sure will break compatibility unti
 go install github.mpi-internal.com/spt-security/vulcan-local@latest
 ```
 
-## vulcan.yaml
+## vulcan.yaml config file
 
 This tool accepts a configuration file.
 
@@ -92,7 +92,7 @@ Exit codes:
 Scanning the checks defined in vulcan.yaml
 
 ```sh
-./vulcan-local -c vulcan.yaml
+vulcan-local -c vulcan.yaml
 ```
 
 If the check images are from private registries first login into the registry.
@@ -104,23 +104,22 @@ cat ~/my_password.txt | docker login --username foo --password-stdin private.reg
 Scan a single asset with all the checkTypes that apply
 
 ```sh
-
-./vulcan-local -t http://localhost:1234 -i exposed -u file://./script/checktypes-stable.json
+vulcan-local -t http://localhost:1234 -i exposed -u file://./script/checktypes-stable.json
 
 # Set VULCAN_CHECKTYPES_URI as the default checktypes uri (-u flag)
 export VULCAN_CHECKTYPES_URI=file://./script/checktypes-stable.json
 
 # Execute all checks on WebAddress that matches 'exposed' regex
-./vulcan-local -t http://localhost:1234 -i exposed
+vulcan-local -t http://localhost:1234 -i exposed
 
 # Execute all checks on WebAddress that doesn't matches 'zap' regex
-./vulcan-local -t http://localhost:1234 -e zap
+vulcan-local -t http://localhost:1234 -e zap
 
 # Execute all checks for GitRepository targets (. has to be the root of a git repo)
-./vulcan-local -t . -a GitRepository
+vulcan-local -t . -a GitRepository
 
 # Execute all checks . inferring the asset type
-./vulcan-local -t .
+vulcan-local -t .
 ```
 
 ## Docker usage
