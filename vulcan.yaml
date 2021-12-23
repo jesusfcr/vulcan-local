@@ -1,0 +1,60 @@
+conf:
+  # Variables needed by some checks.
+  vars:
+    # Credentials for cloning private repositories
+    GITHUB_ENTERPRISE_ENDPOINT: ${GITHUB_ENTERPRISE_ENDPOINT:-https://github.mpi-internal.com/}
+    GITHUB_ENTERPRISE_TOKEN: ${GITHUB_ENTERPRISE_TOKEN}
+
+    # Credentials for one private registry
+    REGISTRY_DOMAIN: ${ARTIFACTORY_DOCKER_REGISTRY:-containers.mpi-internal.com}
+    REGISTRY_USERNAME: ${ARTIFACTORY_USERNAME}
+    REGISTRY_PASSWORD: ${ARTIFACTORY_PASSWORD}
+
+  repositories:
+    # The checktypes in default can be accessed without prefix (i.e. vulcan-seekret or default/vulcan-seekret)
+    default: file://${TRAVIS_BUILD_DIR:-.}/script/checktypes-stable.json
+
+    # Those with the exp prefix (i.e.  default/vulcan-seekret-experimental)
+    exp: https://jesusfcr.github.io/vulcan-checks/checktypes@publish.json
+
+  # *Always*, Never, IfNotPresent
+  pullPolicy: IfNotPresent
+
+  # Number of checks to run concurrently
+  concurrency: 5
+
+reporting:
+  format: json
+  # Valid values CRITICAL, *HIGH*, MEDIUM, LOW  (default HIGH)
+  threshold: HIGH
+
+checks:
+
+  # Check current path
+  - type: vulcan-seekret
+    target: ${TRAVIS_BUILD_DIR:-.}
+
+  # The current remote git target
+  - type: vulcan-seekret
+    target: https://github.mpi-internal.com/${TRAVIS_REPO_SLUG:-spt-security/vulcan-local}.git
+    options:
+      branch: ${TRAVIS_COMMIT:-master}
+
+  # Check with default options
+  - type: vulcan-zap
+    target: http://localhost:1234
+    assetType: WebAddress
+    options:
+      depth: 1
+
+  # Check the docker REMOTE public image
+  - type: vulcan-trivy
+    target: appsecco/dsvw:latest
+
+  # Check a private REMOTE image
+  - type: vulcan-trivy
+    target: containers.mpi-internal.com/vulcan-checks/vulcan-exposed-http-resources:405
+
+  # Check experimental over the current path
+  - type: exp/vulcan-seekret-experimental
+    target: ${TRAVIS_BUILD_DIR:-.}
