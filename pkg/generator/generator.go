@@ -18,9 +18,9 @@ import (
 	"github.com/adevinta/vulcan-agent/jobrunner"
 	"github.com/adevinta/vulcan-agent/log"
 	"github.com/adevinta/vulcan-agent/queue/sqs"
-	"github.com/adevinta/vulcan-local/pkg/config"
-	"github.com/adevinta/vulcan-local/pkg/gitservice"
 	"github.com/google/uuid"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/gitservice"
 )
 
 func getCheckType(cfg *config.Config, checkTypeRef config.ChecktypeRef) (*config.Checktype, error) {

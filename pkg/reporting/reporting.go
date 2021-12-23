@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/adevinta/vulcan-agent/log"
-	"github.com/adevinta/vulcan-local/pkg/config"
-	"github.com/adevinta/vulcan-local/pkg/results"
 	report "github.com/adevinta/vulcan-report"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/results"
 )
 
 type Severity struct {

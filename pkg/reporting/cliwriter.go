@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/adevinta/vulcan-agent/log"
-	"github.com/adevinta/vulcan-local/pkg/config"
 	report "github.com/adevinta/vulcan-report"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
 )
 
 const (

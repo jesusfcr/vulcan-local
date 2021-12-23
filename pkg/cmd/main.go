@@ -22,12 +22,12 @@ import (
 	"github.com/adevinta/vulcan-agent/backend/docker"
 	agentconfig "github.com/adevinta/vulcan-agent/config"
 	agentlog "github.com/adevinta/vulcan-agent/log"
-	"github.com/adevinta/vulcan-local/pkg/config"
-	"github.com/adevinta/vulcan-local/pkg/generator"
-	"github.com/adevinta/vulcan-local/pkg/gitservice"
-	"github.com/adevinta/vulcan-local/pkg/reporting"
-	"github.com/adevinta/vulcan-local/pkg/results"
-	"github.com/adevinta/vulcan-local/pkg/sqsservice"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/generator"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/gitservice"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/reporting"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/results"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/sqsservice"
 )
 
 const defaultDockerHost = "host.docker.internal"

@@ -7,7 +7,7 @@ This tool is under active development and for sure will break compatibility unti
 ## Installing
 
 ```sh
-go install github.mpi-internal.com/spt-security/vulcan-local
+go install github.mpi-internal.com/spt-security/vulcan-local@latest
 ```
 
 ## vulcan.yaml

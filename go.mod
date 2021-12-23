@@ -1,4 +1,4 @@
-module github.com/adevinta/vulcan-local
+module github.mpi-internal.com/spt-security/vulcan-local
 
 go 1.17
 

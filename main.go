@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/adevinta/vulcan-local/pkg/cmd"
-	"github.com/adevinta/vulcan-local/pkg/config"
 	"github.com/sirupsen/logrus"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/cmd"
+	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
 )
 
 const envDefaultChecktypesUri = "VULCAN_CHECKTYPES_URI"
