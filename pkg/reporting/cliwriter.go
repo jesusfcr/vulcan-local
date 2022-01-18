@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -11,9 +12,10 @@ import (
 )
 
 const (
-	SummaryWidth = 30
-	Width        = 100
-	baseIndent   = 2
+	SummaryWidth   = 30
+	Width          = 100
+	baseIndent     = 2
+	resourcesLimit = 3
 )
 
 type cliVulnerability struct {
@@ -96,14 +98,26 @@ func printVulnerability(v cliVulnerability, l log.Logger) string {
 		for _, r := range v.Vulnerability.Resources {
 			if len(r.Rows) != 0 {
 				s = fmt.Sprintf("\n%s\n\n%s", s, formatString(r.Name+":", 0))
+				count := 0
 				for _, rs := range r.Rows {
-					for k, v := range rs {
-						if len(v) != 0 {
-							ts := splitLines(v, baseIndent, Width-baseIndent-len(k)-2)
+					ks := make([]string, 0, len(rs))
+					for k := range rs {
+						ks = append(ks, k)
+					}
+					sort.Strings(ks)
+					for _, k := range ks {
+						if len(rs[k]) != 0 {
+							ts := splitLines(rs[k], baseIndent, Width-baseIndent-len(k)-2)
 							s = fmt.Sprintf("%s\n%s%s: %s", s, indentate(baseIndent), formatString(k, 0), strings.Join(ts, "\n"+indentate(baseIndent+len(k)+2)))
 						}
 					}
 					s = fmt.Sprintf("%s\n", s)
+					count++
+					if count == resourcesLimit {
+						message := fmt.Sprintf("And %s more references", strconv.Itoa(len(rs)-resourcesLimit))
+						s = fmt.Sprintf("%s%s%s\n%s%s", s, indentate((Width+baseIndent)/2-2), "···", indentate((Width+baseIndent-len(message))/2), message)
+						break
+					}
 				}
 			}
 		}
@@ -133,7 +147,7 @@ func splitLines(s string, indent int, width int) []string {
 		} else if npointer-pointer+indent <= width {
 			npointer = pointer + findLastSpace(s[pointer:npointer])
 		}
-		line := strings.ReplaceAll(string(s[pointer:npointer]), "\n", indentate(indent)+"\n")
+		line := strings.ReplaceAll(string(s[pointer:npointer]), "\n", "\n"+indentate(indent))
 		lines = append(lines, line)
 		pointer = npointer
 	}
