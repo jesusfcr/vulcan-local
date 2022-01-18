@@ -1,5 +1,5 @@
 /*
-Copyright 2019 Adevinta
+Copyright 2021 Adevinta
 */
 
 package cmd
@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,6 +22,7 @@ import (
 	"github.com/adevinta/vulcan-agent/backend/docker"
 	agentconfig "github.com/adevinta/vulcan-agent/config"
 	agentlog "github.com/adevinta/vulcan-agent/log"
+	types "github.com/adevinta/vulcan-types"
 	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
 	"github.mpi-internal.com/spt-security/vulcan-local/pkg/generator"
 	"github.mpi-internal.com/spt-security/vulcan-local/pkg/gitservice"
@@ -46,22 +47,33 @@ func Run(cfg *config.Config, log *logrus.Logger) (int, error) {
 		return reporting.ErrorExitCode, fmt.Errorf("unable to generate checks %+v", err)
 	}
 
-	if cfg.Asset.Target != "" && cfg.Asset.AssetType == "" {
-		// TODO: Improve assetType param usage
-		if web, err := getWebAddress(cfg.Asset.Target); err == nil {
-			cfg.Asset.AssetType = "WebAddress"
-			cfg.Asset.Target = web
-		} else if dir, err := generator.GetValidGitDirectory(cfg.Asset.Target); err == nil {
-			cfg.Asset.AssetType = "GitRepository"
-			cfg.Asset.Target = dir
-		} else {
-			return reporting.ErrorExitCode, fmt.Errorf("unable to infer assetType for target=%s", cfg.Asset.Target)
-		}
-		log.Debugf("Inferred asset type target=%s assetType=%s", cfg.Asset.Target, cfg.Asset.AssetType)
-	}
-
+	assets := []config.Asset{}
 	if cfg.Asset.Target != "" {
-		generator.AddAssetChecks(cfg, log)
+		if cfg.Asset.AssetType == "" {
+			if dir, err2 := generator.GetValidGitDirectory(cfg.Asset.Target); err2 == nil {
+				cfg.Asset.Target = dir
+				cfg.Asset.AssetType = "GitRepository"
+				assets = append(assets, cfg.Asset)
+				log.Debugf("Inferred asset type target=%s assetType=%s", cfg.Asset.Target, cfg.Asset.AssetType)
+			} else {
+				// Try to infer the asset type
+				inferredAssets, err := getTypesFromIdentifier(cfg.Asset.Target)
+				if err != nil {
+					return reporting.ErrorExitCode, fmt.Errorf("unable to infer assetType for target=%s %+v", cfg.Asset.Target, err)
+				}
+				assets = append(assets, inferredAssets...)
+				for _, a := range inferredAssets {
+					log.Debugf("Inferred asset type target=%s assetType=%s", a.Target, a.AssetType)
+				}
+			}
+		} else {
+			assets = append(assets, cfg.Asset)
+		}
+
+		// Add the checks for every target + assetType
+		for _, a := range assets {
+			generator.AddAssetChecks(cfg, a, log)
+		}
 	}
 
 	agentIp := GetAgentIP(cfg.Conf.IfName, log)
@@ -153,7 +165,7 @@ func Run(cfg *config.Config, log *logrus.Logger) (int, error) {
 		},
 	}
 
-	backend, err := docker.BuildBackend(log, agentConfig, nil)
+	backend, err := docker.NewBackend(log, agentConfig, nil)
 	if err != nil {
 		return reporting.ErrorExitCode, err
 	}
@@ -176,15 +188,6 @@ func Run(cfg *config.Config, log *logrus.Logger) (int, error) {
 	}
 
 	return reportCode, nil
-}
-
-func getWebAddress(target string) (string, error) {
-	re := regexp.MustCompile(`(?i)(?P<pro>https?://)(?P<domain>[a-z0-9.]+)(?P<port>:[0-9]{2,3})/?`)
-	matches := re.FindStringSubmatch(target)
-	if matches == nil {
-		return "", fmt.Errorf("not a valid webaddress")
-	}
-	return target, nil
 }
 
 // checkDependencies checks that all the dependencies are present and run
@@ -269,4 +272,92 @@ func GetHostIP(l agentlog.Logger) string {
 	ip := strings.TrimSuffix(cmdOut.String(), "\n")
 	l.Debugf("Hostip=%s", ip)
 	return ip
+}
+
+// getTypesFromIdentifier infers the AssetType from an asset identifier
+// This code is borrowed from https://github.com/adevinta/vulcan-api/blob/master/pkg/api/service/assets.go#L598
+// could be moved to vulcan-types in order to allow reuse.
+func getTypesFromIdentifier(identifier string) ([]config.Asset, error) {
+	a := config.Asset{
+		Target: identifier,
+	}
+
+	if types.IsAWSARN(identifier) {
+		a.AssetType = "AWSAccount"
+		return []config.Asset{a}, nil
+	}
+
+	if types.IsDockerImage(identifier) {
+		a.AssetType = "DockerImage"
+		return []config.Asset{a}, nil
+	}
+
+	if types.IsGitRepository(identifier) {
+		a.AssetType = "GitRepository"
+		return []config.Asset{a}, nil
+	}
+
+	if types.IsIP(identifier) {
+		a.AssetType = "IP"
+		return []config.Asset{a}, nil
+	}
+
+	if types.IsCIDR(identifier) {
+		a.AssetType = "IPRange"
+
+		// In case the CIDR has a /32 mask, remove the mask
+		// and add the asset as an IP.
+		if types.IsHost(identifier) {
+			a.Target = strings.TrimSuffix(identifier, "/32")
+			a.AssetType = "IP"
+		}
+
+		return []config.Asset{a}, nil
+	}
+
+	var assets []config.Asset
+
+	isWeb := false
+	if types.IsURL(identifier) {
+		isWeb = true
+
+		// From a URL like https://adevinta.com not only a WebAddress
+		// type can be extracted, also a hostname (adevinta.com) and
+		// potentially a domain name.
+		u, err := url.ParseRequestURI(identifier)
+		if err != nil {
+			return nil, err
+		}
+		identifier = u.Hostname() // Overwrite identifier to check for hostname and domain.
+	}
+
+	if types.IsHostname(identifier) {
+		h := config.Asset{
+			Target:    identifier,
+			AssetType: "Hostname",
+		}
+		assets = append(assets, h)
+
+		// Add WebAddress type only for URLs with valid hostnames.
+		if isWeb {
+			// At this point a.Target contains the original identifier,
+			// not the overwritten identifier.
+			a.AssetType = "WebAddress"
+			assets = append(assets, a)
+		}
+	}
+
+	ok, err := types.IsDomainName(identifier)
+	if err != nil {
+		return nil, fmt.Errorf("can not guess if the asset is a domain: %v", err)
+	}
+	if ok {
+		d := config.Asset{
+			Target:    identifier,
+			AssetType: "DomainName",
+		}
+		assets = append(assets, d)
+	}
+
+	return assets, nil
 }

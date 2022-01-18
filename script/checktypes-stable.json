@@ -2,7 +2,7 @@
     "checktypes": [
         {
             "name": "vulcan-zap",
-            "description": " Runs an OWASP ZAP passive or active scan",
+            "description": "Runs an OWASP ZAP passive or active scan",
             "timeout": 36000,
             "options": {
                 "depth": 2,
@@ -15,7 +15,7 @@
                 ]
             },
             "required_vars": [],
-            "image": "containers.mpi-internal.com/vulcan-checks/vulcan-zap:498",
+            "image": "docker.io/vulcansec/vulcan-zap:latest",
             "assets": [
                 "WebAddress"
             ]
@@ -23,7 +23,7 @@
         {
             "name": "vulcan-trivy",
             "description": "Scan docker images using aquasec/trivy",
-            "image": "containers.mpi-internal.com/vulcan-checks/vulcan-trivy:401",
+            "image": "docker.io/vulcansec/vulcan-trivy:latest",
             "required_vars": [
                 "REGISTRY_DOMAIN",
                 "REGISTRY_USERNAME",
@@ -37,7 +37,7 @@
             "name": "vulcan-seekret",
             "description": "Finds leaked secrets in a Git repository using Seekret",
             "timeout": 600,
-            "image": "containers.mpi-internal.com/vulcan-checks/vulcan-seekret:498",
+            "image": "docker.io/vulcansec/vulcan-seekret:latest",
             "options": {
                 "branch": "",
                 "depth": 1
@@ -53,7 +53,7 @@
         {
             "name": "vulcan-exposed-http-endpoint",
             "description": "This checks looks for well known or custom list of exposed path in a HTTP URL",
-            "image": "containers.mpi-internal.com/vulcan-checks/vulcan-exposed-http-endpoint:528",
+            "image": "docker.io/vulcansec/vulcan-exposed-http-endpoint:latest",
             "required_vars": null,
             "assets": [
                 "WebAddress"
@@ -63,7 +63,7 @@
             "name": "vulcan-exposed-http-resources",
             "description": "This checks looks for a well known or custom list of exposed resources in an HTTP address",
             "timeout": 240,
-            "image": "containers.mpi-internal.com/vulcan-checks/vulcan-exposed-http-resources:405",
+            "image": "docker.io/vulcansec/vulcan-exposed-http-resources:latest",
             "required_vars": null,
             "assets": [
                 "Hostname",

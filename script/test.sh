@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Copyright 2021 Adevinta
+
 # set -e   # Uncomment this to make the pipeline fail in case of a security vuln.
 
 echo "Start target app"

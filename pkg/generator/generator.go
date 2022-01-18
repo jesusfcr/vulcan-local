@@ -1,5 +1,5 @@
 /*
-Copyright 2019 Adevinta
+Copyright 2021 Adevinta
 */
 
 package generator
@@ -133,15 +133,14 @@ func stringInSlice(a string, list []string) bool {
 	return false
 }
 
-func AddAssetChecks(cfg *config.Config, l log.Logger) error {
+func AddAssetChecks(cfg *config.Config, a config.Asset, l log.Logger) error {
 	checks := []config.Check{}
-	s := cfg.Asset
 	for ref, ch := range cfg.CheckTypes {
-		if stringInSlice(s.AssetType, ch.Assets) && filterChecktype(ch.Name, cfg.Conf.Include, cfg.Conf.Exclude) {
+		if stringInSlice(a.AssetType, ch.Assets) && filterChecktype(ch.Name, cfg.Conf.Include, cfg.Conf.Exclude) {
 			checks = append(checks, config.Check{
 				Type:      ref,
-				Target:    s.Target,
-				AssetType: s.AssetType,
+				Target:    a.Target,
+				AssetType: a.AssetType,
 				Options:   nil, // TODO: Allow options via flags (but options are related to a checktype)
 			})
 		}
