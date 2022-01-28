@@ -58,10 +58,18 @@ type Conf struct {
 	Include      string            `yaml:"include"`
 }
 
+type Exclusion struct {
+	Target           string `yaml:"target"`
+	Summary          string `yaml:"summary"`
+	AffectedResource string `yaml:"affectedResource"`
+	Fingerprint      string `yaml:"fingerprint"`
+}
+
 type Reporting struct {
-	Threshold  string `yaml:"threshold"`
-	Format     string `yaml:"format"`
-	OutputFile string `yaml:"outputFile"`
+	Threshold  string      `yaml:"threshold"`
+	Format     string      `yaml:"format"`
+	OutputFile string      `yaml:"outputFile"`
+	Exclusions []Exclusion `yaml:"exclusions"`
 }
 
 // Definition borrowed from vulcan-checks-bsys.

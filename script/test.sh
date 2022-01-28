@@ -10,7 +10,7 @@ docker run -p 1234:8000 --restart unless-stopped --name dsvw -d appsecco/dsvw
 
 sleep 5
 
-./vulcan-local -c ./vulcan.yaml -r report.json
+./vulcan-local -c ./vulcan.yaml
 echo "Test based on yaml config - exit=$?"
 
 ./vulcan-local -t . -e github -u file://./script/checktypes-stable.json
@@ -21,7 +21,7 @@ echo "Test local app as a webaddress excluding nessus - exit=$?"
 
 docker run -i --rm -v /var/run/docker.sock:/var/run/docker.sock  \
     -v "$PWD":/target -e TRAVIS_BUILD_DIR=/target \
-    vulcan-local -c /target/vulcan.yaml
+    vulcan-local -c /target/vulcan.yaml -e zap
 echo "Docker test based on yaml config - exit=$?"
 
 docker run -i --rm -v /var/run/docker.sock:/var/run/docker.sock -v \

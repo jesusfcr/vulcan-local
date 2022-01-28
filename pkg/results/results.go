@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	"github.com/adevinta/vulcan-agent/log"
-	vulcanreport "github.com/adevinta/vulcan-report"
+	report "github.com/adevinta/vulcan-report"
 	"github.com/julienschmidt/httprouter"
 	"github.com/phayes/freeport"
 )
@@ -31,7 +31,7 @@ type LogsPayload struct {
 
 type ResultsServer struct {
 	Endpoint string
-	Checks   map[string]*vulcanreport.Report
+	Checks   map[string]*report.Report
 	done     chan error
 	server   *http.Server
 	log      log.Logger
@@ -50,7 +50,7 @@ func Start(l log.Logger) (*ResultsServer, error) {
 
 	r := ResultsServer{
 		Endpoint: endpoint,
-		Checks:   make(map[string]*vulcanreport.Report),
+		Checks:   make(map[string]*report.Report),
 		done:     make(chan error),
 		log:      l,
 	}
@@ -101,7 +101,7 @@ func (srv *ResultsServer) handleReport(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	report := &vulcanreport.Report{}
+	report := &report.Report{}
 	err = json.Unmarshal([]byte(pl.ReportRaw), report)
 	if err != nil {
 		srv.log.Errorf("Unable to decode %s %v", string(pl.ReportRaw), err)

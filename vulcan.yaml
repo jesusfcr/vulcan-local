@@ -23,11 +23,6 @@ conf:
   # Number of checks to run concurrently
   concurrency: 5
 
-reporting:
-  format: json
-  # Valid values CRITICAL, *HIGH*, MEDIUM, LOW  (default HIGH)
-  threshold: HIGH
-
 checks:
 
   # Check current path
@@ -58,3 +53,19 @@ checks:
   # Check experimental over the current path
   - type: exp/vulcan-seekret-experimental
     target: ${TRAVIS_BUILD_DIR:-.}
+
+reporting:
+  format: json
+  # Valid values CRITICAL, *HIGH*, MEDIUM, LOW  (default HIGH)
+  threshold: HIGH
+  exclusions:
+    - summary: Leaked
+    - affectedResource: libgcrypt
+      target: .
+    - affectedResource: busybox
+      target: .
+    - affectedResource: musl
+      target: .
+    - affectedResource: ncurses
+      target: latest
+    - fingerprint: 7820aa24a96f0fcd4717933772a8bc89552a0c1509f3d90b14d885d25e60595f

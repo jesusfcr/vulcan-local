@@ -124,6 +124,30 @@ vulcan-local -t . -a GitRepository
 vulcan-local -t .
 ```
 
+### Exclusions
+
+In case the tool reports a finding that should be excluded from the next scans, it is possible to apply some filtering.
+
+When specified, it applies a `contains` evaluation over the following fields:
+
+- summary
+- affectedResource: Applies either to `affectedResource` and `affectedResourceString`
+- target
+- fingerprint
+
+```yaml
+reporting:
+  exclusions:
+    - summary: Leaked
+    - affectedResource: libgcrypt
+      target: .
+    - affectedResource: busybox
+      target: .
+    - affectedResource: ncurses
+      target: latest
+    - fingerprint: 7820aa24a96f0fcd4717933772a8bc89552a0c1509f3d90b14d885d25e60595f
+```
+
 ## Docker usage
 
 Using the existing docker image:

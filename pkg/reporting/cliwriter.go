@@ -1,14 +1,13 @@
 package reporting
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/adevinta/vulcan-agent/log"
 	report "github.com/adevinta/vulcan-report"
-	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
 )
 
 const (
@@ -18,86 +17,71 @@ const (
 	resourcesLimit = 3
 )
 
-type cliVulnerability struct {
-	Asset         string
-	TrueAsset     string
-	Severity      string
-	Color         int
-	Vulnerability report.Vulnerability
+// Create a new extended entity to allow to filter by all the fields
+type ExtendedVulnerability struct {
+	*report.CheckData
+	*report.Vulnerability
+	Severity *Severity
+	Excluded bool
 }
 
-func summaryTable(s []*report.Report, l log.Logger) {
+func summaryTable(s []ExtendedVulnerability, l log.Logger) {
+	if len(s) == 0 {
+		l.Infof("No vulnerabilities found during the last scan")
+		return
+	}
 	data := make(map[string]int)
-	for _, s := range s {
-		for _, v := range s.Vulnerabilities {
-			severity, _ := mapSeverity(v.Score)
-			data[severity]++
+	excluded := 0
+	for _, v := range s {
+		if v.Excluded {
+			excluded++
+		} else {
+			data[mapSeverity(v.Score).Name]++
 		}
 	}
-	var summary string
+	buf := new(bytes.Buffer)
+	fmt.Fprint(buf, "\nSummary of the last scan:\n")
 	for _, d := range severities {
 		color := 0
 		if data[d.Name] != 0 {
 			color = d.Color
 		}
-		summary = fmt.Sprintf("%s%s%s%s%s\n", summary, indentate(baseIndent), formatString(d.Name, color), strings.Repeat("·", SummaryWidth-len(d.Name)), strconv.Itoa(data[d.Name]))
+		fmt.Fprintf(buf, "%s%s%s%4d\n", indentate(baseIndent), formatString(d.Name, color), strings.Repeat("·", SummaryWidth-len(d.Name)), data[d.Name])
 	}
-	if len(s) != 0 {
-		l.Infof("\nSummary of the last scan:\n" + summary + "\n")
-	} else {
-		l.Infof("No vulnerabilities found during the last scan")
+	if excluded > 0 {
+		fmt.Fprintf(buf, "\nNumber of excluded vulnerabilities: %d\n", excluded)
 	}
+	fmt.Fprint(buf, "\n")
+	l.Infof(buf.String())
 }
 
-func parseReports(reports []*report.Report, config *config.Config) []cliVulnerability {
-	var c []cliVulnerability
-	var cv cliVulnerability
-	for _, r := range reports {
-		for _, v := range r.Vulnerabilities {
-			cv.Asset = r.Target
-			cv.Severity, cv.Color = mapSeverity(v.Score)
-			cv.Vulnerability = v
-			for _, s := range config.Checks {
-				if s.Id == r.CheckID {
-					cv.TrueAsset = s.Target
-				}
-			}
-			c = append(c, cv)
-		}
-	}
-	return c
-}
-
-func printVulnerability(v cliVulnerability, l log.Logger) string {
-	color := v.Color
-	severity := v.Severity
-	if v.Severity == "NONE" {
+func printVulnerability(v *ExtendedVulnerability, l log.Logger) string {
+	severity := v.Severity.Name
+	color := v.Severity.Color
+	if severity == "NONE" {
 		color = 0
 		severity = "INFORMATIONAL"
 	}
-	s := formatString(strings.Repeat("=", Width), color)
+	buf := new(bytes.Buffer)
+	fmt.Fprint(buf, formatString(strings.Repeat("=", Width), color))
 	n := (Width - len(severity)) / 2
-	s = s + formatString(fmt.Sprintf("\n%s%s%s", strings.Repeat("=", n), severity, strings.Repeat("=", Width-n-len(severity))), color)
-	asset := v.Asset
-	if asset != v.TrueAsset {
-		asset = fmt.Sprintf("%s (%s)", v.TrueAsset, v.Asset)
-	}
-	s = fmt.Sprintf("%s\n%s %s", s, formatString("ASSET:", 0), asset)
-	s = fmt.Sprintf("\n%s\n\n%s %s", s, formatString("SUMMARY:", 0), v.Vulnerability.Summary)
+	fmt.Fprint(buf, formatString(fmt.Sprintf("\n%s%s%s\n", strings.Repeat("=", n), severity, strings.Repeat("=", Width-n-len(severity))), color))
+	fmt.Fprintf(buf, "%s %s\n", formatString("TARGET:", 0), v.Target)
+	fmt.Fprintf(buf, "%s %s\n", formatString("SUMMARY:", 0), v.Vulnerability.Summary)
 	dlines := splitLines(v.Vulnerability.Description, baseIndent, Width)
-	s = fmt.Sprintf("\n%s\n\n%s\n%s%s", s, formatString("DESCRIPTION:", 0), indentate(baseIndent), strings.Join(dlines, "\n"+indentate(baseIndent)))
+	fmt.Fprintf(buf, "\n%s\n%s%s", formatString("DESCRIPTION:", 0), indentate(baseIndent), strings.Join(dlines, "\n"+indentate(baseIndent)))
 	if len(v.Vulnerability.Details) != 0 {
 		dlines = splitLines(v.Vulnerability.Details, baseIndent, Width)
-		s = fmt.Sprintf("%s\n\n%s\n%s%s", s, formatString("DETAILS:", 0), indentate(baseIndent), strings.Join(dlines, "\n"+indentate(baseIndent)))
+		fmt.Fprintf(buf, "\n\n%s\n%s%s", formatString("DETAILS:", 0), indentate(baseIndent), strings.Join(dlines, "\n"+indentate(baseIndent)))
 	}
 	if len(v.Vulnerability.References) != 0 && v.Vulnerability.References[0] != "" {
 		sep := "\n" + indentate(baseIndent) + "- "
-		s = fmt.Sprintf("%s\n\n%s%s%s", s, formatString("REFERENCES:", 0), sep, strings.Join(v.Vulnerability.References, sep))
+		fmt.Fprintf(buf, "\n\n%s%s%s", formatString("REFERENCES:", 0), sep, strings.Join(v.Vulnerability.References, sep))
 	}
 	if len(v.Vulnerability.Resources) != 0 {
 		for _, r := range v.Vulnerability.Resources {
 			if len(r.Rows) != 0 {
-				s = fmt.Sprintf("\n%s\n\n%s", s, formatString(r.Name+":", 0))
+				fmt.Fprintf(buf, "\n\n%s", formatString(r.Name+":", 0))
 				count := 0
 				for _, rs := range r.Rows {
 					ks := make([]string, 0, len(rs))
@@ -108,31 +92,31 @@ func printVulnerability(v cliVulnerability, l log.Logger) string {
 					for _, k := range ks {
 						if len(rs[k]) != 0 {
 							ts := splitLines(rs[k], baseIndent, Width-baseIndent-len(k)-2)
-							s = fmt.Sprintf("%s\n%s%s: %s", s, indentate(baseIndent), formatString(k, 0), strings.Join(ts, "\n"+indentate(baseIndent+len(k)+2)))
+							fmt.Fprintf(buf, "\n%s%s: %s", indentate(baseIndent), formatString(k, 0), strings.Join(ts, "\n"+indentate(baseIndent+len(k)+2)))
 						}
 					}
-					s = fmt.Sprintf("%s\n", s)
+					fmt.Fprint(buf, "\n")
 					count++
 					if count == resourcesLimit {
-						message := fmt.Sprintf("And %s more references", strconv.Itoa(len(rs)-resourcesLimit))
-						s = fmt.Sprintf("%s%s%s\n%s%s", s, indentate((Width+baseIndent)/2-2), "···", indentate((Width+baseIndent-len(message))/2), message)
+						message := fmt.Sprintf("And %d more references", len(rs)-resourcesLimit)
+						fmt.Fprintf(buf, "%s%s\n%s%s", indentate((Width+baseIndent)/2-2), "···", indentate((Width+baseIndent-len(message))/2), message)
 						break
 					}
 				}
 			}
 		}
 	}
-	s = fmt.Sprintf("%s\n\n", s)
-	return s
+	fmt.Fprintf(buf, "\n\n")
+	return buf.String()
 }
 
-func mapSeverity(score float32) (string, int) {
+func mapSeverity(score float32) *Severity {
 	for _, s := range severities {
 		if score >= s.Threshold {
-			return s.Name, s.Color
+			return &s
 		}
 	}
-	return "NONE", 0
+	return &severities[:1][0]
 }
 
 func splitLines(s string, indent int, width int) []string {
@@ -170,8 +154,7 @@ func formatString(s string, i int) string {
 	if i == 0 {
 		return fmt.Sprintf("\x1b[1m%s\x1b[0m", s)
 	}
-	c := strconv.Itoa(i)
-	return fmt.Sprintf("\x1b[%s;1m%s\x1b[0m", c, s)
+	return fmt.Sprintf("\x1b[%d;1m%s\x1b[0m", i, s)
 }
 
 func indentate(indent int) string {
