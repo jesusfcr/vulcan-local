@@ -50,8 +50,7 @@ func Run(cfg *config.Config, log *logrus.Logger) (int, error) {
 	assets := []config.Asset{}
 	if cfg.Asset.Target != "" {
 		if cfg.Asset.AssetType == "" {
-			if dir, err2 := generator.GetValidGitDirectory(cfg.Asset.Target); err2 == nil {
-				cfg.Asset.Target = dir
+			if _, err2 := generator.GetValidGitDirectory(cfg.Asset.Target); err2 == nil {
 				cfg.Asset.AssetType = "GitRepository"
 				assets = append(assets, cfg.Asset)
 				log.Debugf("Inferred asset type target=%s assetType=%s", cfg.Asset.Target, cfg.Asset.AssetType)
