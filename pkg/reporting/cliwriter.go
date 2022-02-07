@@ -36,7 +36,7 @@ func summaryTable(s []ExtendedVulnerability, l log.Logger) {
 		if v.Excluded {
 			excluded++
 		} else {
-			data[mapSeverity(v.Score).Name]++
+			data[FindSeverityByScore(v.Score).Name]++
 		}
 	}
 	buf := new(bytes.Buffer)
@@ -67,6 +67,13 @@ func printVulnerability(v *ExtendedVulnerability, l log.Logger) string {
 	n := (Width - len(severity)) / 2
 	fmt.Fprint(buf, formatString(fmt.Sprintf("\n%s%s%s\n", strings.Repeat("=", n), severity, strings.Repeat("=", Width-n-len(severity))), color))
 	fmt.Fprintf(buf, "%s %s\n", formatString("TARGET:", 0), v.Target)
+	affectedResource := v.Vulnerability.AffectedResourceString
+	if affectedResource == "" {
+		affectedResource = v.Vulnerability.AffectedResource
+	}
+	if affectedResource != "" {
+		fmt.Fprintf(buf, "%s %s\n", formatString("AFFECTED RESOURCE:", 0), affectedResource)
+	}
 	fmt.Fprintf(buf, "%s %s\n", formatString("SUMMARY:", 0), v.Vulnerability.Summary)
 	dlines := splitLines(v.Vulnerability.Description, baseIndent, Width)
 	fmt.Fprintf(buf, "\n%s\n%s%s", formatString("DESCRIPTION:", 0), indentate(baseIndent), strings.Join(dlines, "\n"+indentate(baseIndent)))
@@ -108,15 +115,6 @@ func printVulnerability(v *ExtendedVulnerability, l log.Logger) string {
 	}
 	fmt.Fprintf(buf, "\n\n")
 	return buf.String()
-}
-
-func mapSeverity(score float32) *Severity {
-	for _, s := range severities {
-		if score >= s.Threshold {
-			return &s
-		}
-	}
-	return &severities[:1][0]
 }
 
 func splitLines(s string, indent int, width int) []string {

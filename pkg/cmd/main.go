@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -42,6 +43,21 @@ func Run(cfg *config.Config, log *logrus.Logger) (int, error) {
 		return reporting.ErrorExitCode, fmt.Errorf("unmet dependencies %+v", err)
 	}
 
+	if cfg.Conf.Include != "" {
+		if cfg.Conf.IncludeR, err = regexp.Compile(cfg.Conf.Include); err != nil {
+			return reporting.ErrorExitCode, fmt.Errorf("invalid include regexp %+v", err)
+		}
+	}
+	if cfg.Conf.Exclude != "" {
+		if cfg.Conf.ExcludeR, err = regexp.Compile(cfg.Conf.Exclude); err != nil {
+			return reporting.ErrorExitCode, fmt.Errorf("invalid exclude regexp %+v", err)
+		}
+	}
+
+	if _, err := reporting.FindSeverity(cfg.Reporting.Threshold); err != nil {
+		return reporting.ErrorExitCode, err
+	}
+
 	err = generator.ImportRepositories(cfg, log)
 	if err != nil {
 		return reporting.ErrorExitCode, fmt.Errorf("unable to generate checks %+v", err)
@@ -56,7 +72,7 @@ func Run(cfg *config.Config, log *logrus.Logger) (int, error) {
 				log.Debugf("Inferred asset type target=%s assetType=%s", cfg.Asset.Target, cfg.Asset.AssetType)
 			} else {
 				// Try to infer the asset type
-				inferredAssets, err := getTypesFromIdentifier(cfg.Asset.Target)
+				inferredAssets, err := getTypesFromIdentifier(cfg.Asset)
 				if err != nil {
 					return reporting.ErrorExitCode, fmt.Errorf("unable to infer assetType for target=%s %+v", cfg.Asset.Target, err)
 				}
@@ -276,9 +292,11 @@ func GetHostIP(l agentlog.Logger) string {
 // getTypesFromIdentifier infers the AssetType from an asset identifier
 // This code is borrowed from https://github.com/adevinta/vulcan-api/blob/master/pkg/api/service/assets.go#L598
 // could be moved to vulcan-types in order to allow reuse.
-func getTypesFromIdentifier(identifier string) ([]config.Asset, error) {
+func getTypesFromIdentifier(asset config.Asset) ([]config.Asset, error) {
+	identifier := asset.Target
 	a := config.Asset{
-		Target: identifier,
+		Target:  identifier,
+		Options: asset.Options,
 	}
 
 	if types.IsAWSARN(identifier) {

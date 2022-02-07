@@ -50,6 +50,8 @@ func mergeOptions(optsA map[string]interface{}, optsB map[string]interface{}) ma
 	return merged
 }
 
+// buildOptions generates a string encoded Now it makes the union of both options with precedence of the targetOpts.
+// TODO: Decide if it makes sense to intersect, discarding the target options not defined in the checktypeOpts
 func buildOptions(checktypeOpts, targetOpts map[string]interface{}) (string, error) {
 	totalOptions := map[string]interface{}{}
 	if len(checktypeOpts) > 0 {
@@ -78,7 +80,7 @@ func GenerateJobs(cfg *config.Config, agentIp, hostIp string, gs gitservice.GitS
 			continue
 		}
 
-		if !filterChecktype(ch.Name, cfg.Conf.Include, cfg.Conf.Exclude) {
+		if !filterChecktype(ch.Name, cfg.Conf.IncludeR, cfg.Conf.ExcludeR) {
 			l.Debugf("Skipping filtered check=%s", ch.Name)
 			continue
 		}
@@ -91,7 +93,6 @@ func GenerateJobs(cfg *config.Config, agentIp, hostIp string, gs gitservice.GitS
 		c.Id = uuid.New().String()
 		c.NewTarget = c.Target
 		if stringInSlice("GitRepository", ch.Assets) {
-			// TODO: Move util functions to pkg
 			if path, err := GetValidGitDirectory(c.Target); err == nil {
 				c.AssetType = "GitRepository"
 				port, err := gs.AddGit(path)
@@ -136,12 +137,12 @@ func stringInSlice(a string, list []string) bool {
 func AddAssetChecks(cfg *config.Config, a config.Asset, l log.Logger) error {
 	checks := []config.Check{}
 	for ref, ch := range cfg.CheckTypes {
-		if stringInSlice(a.AssetType, ch.Assets) && filterChecktype(ch.Name, cfg.Conf.Include, cfg.Conf.Exclude) {
+		if stringInSlice(a.AssetType, ch.Assets) && filterChecktype(ch.Name, cfg.Conf.IncludeR, cfg.Conf.ExcludeR) {
 			checks = append(checks, config.Check{
 				Type:      ref,
 				Target:    a.Target,
 				AssetType: a.AssetType,
-				Options:   nil, // TODO: Allow options via flags (but options are related to a checktype)
+				Options:   a.Options,
 			})
 		}
 	}
@@ -165,15 +166,12 @@ func SendJobs(jobs []jobrunner.Job, arn, endpoint string, l log.Logger) error {
 	return nil
 }
 
-func filterChecktype(name, include, exclude string) bool {
-	// TODO: manage errors
-	if include != "" {
-		rei, _ := regexp.Match(include, []byte(name))
-		return rei
+func filterChecktype(name string, include, exclude *regexp.Regexp) bool {
+	if include != nil {
+		return include.Match([]byte(name))
 	}
-	if exclude != "" {
-		rei, _ := regexp.Match(exclude, []byte(name))
-		return !rei
+	if exclude != nil {
+		return !exclude.Match([]byte(name))
 	}
 	return true
 }

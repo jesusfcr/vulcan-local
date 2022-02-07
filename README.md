@@ -70,10 +70,12 @@ Usage of out/vulcan-local:
     	network interface where agent will be available for the checks (default "docker0")
   -l string
     	log level (panic, fatal, error, warn, info, debug) (default "info")
+  -o string
+    	Options related to the asset (-t) used in all the their checks (i.e. '{"depth":"1", "max_scan_duration": 1}' )
   -r string
     	results file (i.e. -r results.json)
   -s string
-    	severity threshold (NONE, LOW, MEDIUM, HIGH, CRITICAL) (default "HIGH")
+    	filter by severity (CRITICAL, HIGH, MEDIUM, LOW, ALL) (default "HIGH")
   -t string
     	target to check
   -u string
@@ -116,6 +118,9 @@ vulcan-local -t http://localhost:1234 -i exposed
 
 # Execute all checks on WebAddress that doesn't matches 'zap' regex
 vulcan-local -t http://localhost:1234 -e zap
+
+# Execute all checks on WebAddress with the indicated option.
+vulcan-local -t http://localhost:1234 -o '{"depth": 1}'
 
 # Execute all checks for GitRepository targets (. has to be the root of a git repo)
 vulcan-local -t . -a GitRepository

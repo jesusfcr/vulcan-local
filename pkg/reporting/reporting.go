@@ -54,8 +54,8 @@ var severities = []Severity{
 		Color:     36, // Light blue
 	},
 	{
-		Name:      "NONE",
-		Threshold: 100,
+		Name:      "ALL",
+		Threshold: 0,
 		Exit:      SuccessExitCode,
 		Color:     36, // Light blue
 	},
@@ -99,7 +99,7 @@ func parseReports(reports map[string]*report.Report, cfg *config.Config, l log.L
 			extended := ExtendedVulnerability{
 				CheckData:     &r.CheckData,
 				Vulnerability: &v,
-				Severity:      mapSeverity(v.Score),
+				Severity:      FindSeverityByScore(v.Score),
 			}
 			for _, s := range cfg.Checks {
 				if s.Id == r.CheckID {
@@ -114,18 +114,40 @@ func parseReports(reports map[string]*report.Report, cfg *config.Config, l log.L
 	return vulns
 }
 
+func FindSeverity(name string) (*Severity, error) {
+	for i, t := range severities {
+		if name == t.Name {
+			return &severities[i], nil
+		}
+	}
+	return nil, fmt.Errorf("invalid severity %s, allowed values %v", name, SeverityNames())
+}
+
+func SeverityNames() []string {
+	names := []string{}
+	for _, t := range severities {
+		names = append(names, t.Name)
+	}
+	return names
+}
+
+func FindSeverityByScore(score float32) *Severity {
+	for _, s := range severities {
+		if score >= s.Threshold {
+			return &s
+		}
+	}
+	return &severities[len(severities)-1]
+}
+
 func Generate(cfg *config.Config, results *results.ResultsServer, l log.Logger) (int, error) {
 	if cfg.Reporting.Format != "json" {
 		return 1, fmt.Errorf("report format unknown %s", cfg.Reporting.Format)
 	}
 
-	// Default requested severity as MEDIUM
-	requested := severities[1]
-	for _, t := range severities {
-		if cfg.Reporting.Threshold == t.Name {
-			requested = t
-			break
-		}
+	requested, err := FindSeverity(cfg.Reporting.Threshold)
+	if err != nil {
+		return ErrorExitCode, err
 	}
 
 	// Print results when no output file is set
@@ -137,7 +159,7 @@ func Generate(cfg *config.Config, results *results.ResultsServer, l log.Logger) 
 	outputFile := cfg.Reporting.OutputFile
 	if outputFile != "" {
 
-		// TODO: Decide if we want to apply the threshold and exclusion filtering to the JSON.
+		// TODO: Decide if we want to keep filtering JSON output by threshold and exclusion
 		// Recreates the original report map filtering the Excluded and Threshold
 		// json: Just print the reports as an slice
 		m := map[string]*report.Report{}
@@ -166,21 +188,21 @@ func Generate(cfg *config.Config, results *results.ResultsServer, l log.Logger) 
 				return 1, fmt.Errorf("unable to write report file %s %+v", outputFile, err)
 			}
 		}
-	} else {
-		// Print results when no output file is set
-		var rs string
-		for _, s := range severities {
-			for _, v := range vs {
-				if v.Severity.Name == s.Name && !v.Excluded && v.Severity.Threshold >= requested.Threshold {
-					rs = fmt.Sprintf("%s%s", rs, printVulnerability(&v, l))
-				}
-			}
-		}
-		if len(rs) > 0 {
-			l.Infof("\nVulnerabilities details:\n%s", rs)
-		}
 	}
 
+	var rs string
+	for _, s := range severities {
+		for _, v := range vs {
+			if v.Severity.Name == s.Name && !v.Excluded && v.Severity.Threshold >= requested.Threshold {
+				rs = fmt.Sprintf("%s%s", rs, printVulnerability(&v, l))
+			}
+		}
+	}
+	if len(rs) > 0 {
+		l.Infof("\nVulnerabilities details:\n%s", rs)
+	}
+
+	// Get max reported score in vulnerabilities
 	var maxScore float32 = -1.0
 	for _, v := range vs {
 		if v.Score > float32(maxScore) {
@@ -188,16 +210,7 @@ func Generate(cfg *config.Config, results *results.ResultsServer, l log.Logger) 
 		}
 	}
 
-	// Find the highest severity for that Score
-	current := severities[len(severities)-1]
-	for _, t := range severities {
-		if t.Threshold < maxScore {
-			current = t
-			break
-		}
-	}
-
-	if current.Threshold >= requested.Threshold {
+	if current := FindSeverityByScore(maxScore); current.Threshold >= requested.Threshold {
 		return current.Exit, nil
 	}
 

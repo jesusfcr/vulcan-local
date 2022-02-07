@@ -16,7 +16,7 @@ echo "Test based on yaml config - exit=$?"
 ./vulcan-local -t . -e github -u file://./script/checktypes-stable.json
 echo "Test local path as a git repository excluding the github check - exit=$?"
 
-./vulcan-local -t http://localhost:1234 -e nessus -u file://./script/checktypes-stable.json
+./vulcan-local -t http://localhost:1234 -e nessus -u file://./script/checktypes-stable.json -o '{"max_scan_duration":1}'
 echo "Test local app as a webaddress excluding nessus - exit=$?"
 
 docker run -i --rm -v /var/run/docker.sock:/var/run/docker.sock  \

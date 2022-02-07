@@ -41,6 +41,8 @@ checks:
     assetType: WebAddress
     options:
       depth: 1
+      max_scan_duration: 2
+      max_spider_duration: 1
 
   # Check the docker REMOTE public image
   - type: vulcan-trivy

@@ -8,6 +8,7 @@ before_script:
   - configure_docker
 script:
   - go build -o vulcan-local main.go
+  - go test ./...
   - docker build . -t vulcan-local
   - ./script/test.sh
 after_success:

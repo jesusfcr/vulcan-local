@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ type Check struct {
 type Asset struct {
 	Target    string
 	AssetType string
+	Options   map[string]interface{}
 }
 
 type Config struct {
@@ -56,6 +58,8 @@ type Conf struct {
 	IfName       string            `yaml:"ifName"`
 	Exclude      string            `yaml:"exclude"`
 	Include      string            `yaml:"include"`
+	IncludeR     *regexp.Regexp
+	ExcludeR     *regexp.Regexp
 }
 
 type Exclusion struct {
@@ -86,24 +90,6 @@ type Checktype struct {
 
 type Manifest struct {
 	CheckTypes []Checktype
-}
-
-var DefaultConfig = Config{
-	Conf: Conf{
-		PullPolicy:  "IfNotPresent",
-		DockerBin:   "docker",
-		GitBin:      "git",
-		LogLevel:    "info",
-		Concurrency: 5,
-		IfName:      "docker0",
-		Vars:        map[string]string{},
-	},
-	Reporting: Reporting{
-		Threshold: "HIGH",
-		Format:    "json",
-	},
-	CheckTypes: map[ChecktypeRef]Checktype{},
-	Checks:     []Check{},
 }
 
 func GetManifestFromUrl(url string) ([]Checktype, error) {
