@@ -32,7 +32,7 @@ type Check struct {
 	Id        string
 }
 
-type Asset struct {
+type Target struct {
 	Target    string
 	AssetType string
 	Options   map[string]interface{}
@@ -42,7 +42,7 @@ type Config struct {
 	Conf       Conf                       `yaml:"conf"`
 	Reporting  Reporting                  `yaml:"reporting,omitempty"`
 	Checks     []Check                    `yaml:"checks"`
-	Asset      Asset                      `yaml:"asset"`
+	Targets    []Target                   `yaml:"targets"`
 	CheckTypes map[ChecktypeRef]Checktype `yaml:"checkTypes"`
 }
 

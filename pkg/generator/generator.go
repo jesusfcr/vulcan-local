@@ -6,8 +6,10 @@ package generator
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +20,7 @@ import (
 	"github.com/adevinta/vulcan-agent/jobrunner"
 	"github.com/adevinta/vulcan-agent/log"
 	"github.com/adevinta/vulcan-agent/queue/sqs"
+	types "github.com/adevinta/vulcan-types"
 	"github.com/google/uuid"
 	"github.mpi-internal.com/spt-security/vulcan-local/pkg/config"
 	"github.mpi-internal.com/spt-security/vulcan-local/pkg/gitservice"
@@ -134,7 +137,156 @@ func stringInSlice(a string, list []string) bool {
 	return false
 }
 
-func AddAssetChecks(cfg *config.Config, a config.Asset, l log.Logger) error {
+// getTypesFromIdentifier infers the AssetType from an asset identifier
+// This code is borrowed from https://github.com/adevinta/vulcan-api/blob/master/pkg/api/service/assets.go#L598
+// could be moved to vulcan-types in order to allow reuse.
+func getTypesFromIdentifier(target config.Target) ([]config.Target, error) {
+	identifier := target.Target
+	a := config.Target{
+		Target:  identifier,
+		Options: target.Options,
+	}
+
+	if types.IsAWSARN(identifier) {
+		a.AssetType = "AWSAccount"
+		return []config.Target{a}, nil
+	}
+
+	if types.IsDockerImage(identifier) {
+		a.AssetType = "DockerImage"
+		return []config.Target{a}, nil
+	}
+
+	if types.IsGitRepository(identifier) {
+		a.AssetType = "GitRepository"
+		return []config.Target{a}, nil
+	}
+
+	if _, err := GetValidGitDirectory(identifier); err == nil {
+		a.AssetType = "GitRepository"
+		return []config.Target{a}, nil
+	}
+
+	if types.IsIP(identifier) {
+		a.AssetType = "IP"
+		return []config.Target{a}, nil
+	}
+
+	if types.IsCIDR(identifier) {
+		a.AssetType = "IPRange"
+
+		// In case the CIDR has a /32 mask, remove the mask
+		// and add the asset as an IP.
+		if types.IsHost(identifier) {
+			a.Target = strings.TrimSuffix(identifier, "/32")
+			a.AssetType = "IP"
+		}
+
+		return []config.Target{a}, nil
+	}
+
+	var targets []config.Target
+
+	isWeb := false
+	if types.IsURL(identifier) {
+		isWeb = true
+
+		// From a URL like https://adevinta.com not only a WebAddress
+		// type can be extracted, also a hostname (adevinta.com) and
+		// potentially a domain name.
+		u, err := url.ParseRequestURI(identifier)
+		if err != nil {
+			return nil, err
+		}
+		identifier = u.Hostname() // Overwrite identifier to check for hostname and domain.
+	}
+
+	if types.IsHostname(identifier) {
+
+		// Prevent using localhost as a Hostname
+		if !regexp.MustCompile(`(?i)(localhost|127.0.0.1)`).MatchString(identifier) {
+			h := config.Target{
+				Target:    identifier,
+				AssetType: "Hostname",
+				Options:   target.Options, // Use the same options
+			}
+			targets = append(targets, h)
+		}
+
+		// Add WebAddress type only for URLs with valid hostnames.
+		if isWeb {
+			// At this point a.Target contains the original identifier,
+			// not the overwritten identifier.
+			a.AssetType = "WebAddress"
+			targets = append(targets, a)
+		}
+	}
+
+	ok, err := types.IsDomainName(identifier)
+	if err != nil {
+		return nil, fmt.Errorf("can not guess if the asset is a domain: %v", err)
+	}
+	if ok {
+		d := config.Target{
+			Target:    identifier,
+			AssetType: "DomainName",
+			Options:   target.Options, // Use the same options
+		}
+		targets = append(targets, d)
+	}
+
+	return targets, nil
+}
+
+// GenerateChecksFromTargets expands the list of targets by inferring missing AssetTypes
+// and generates the list of checks to run based on the available Checktypes and AssetType
+func GenerateChecksFromTargets(cfg *config.Config, l log.Logger) error {
+	// Generate a new list of Targets with AssetType
+	expandedTargets := []config.Target{}
+	for _, t := range cfg.Targets {
+		if t.AssetType == "" {
+			// Try to infer the asset type
+			if inferredTargets, err := getTypesFromIdentifier(t); err != nil {
+				return fmt.Errorf("unable to infer assetType for target=%s %+v", t.Target, err)
+			} else {
+				for _, a := range inferredTargets {
+					l.Debugf("Inferred asset type target=%s assetType=%s", a.Target, a.AssetType)
+				}
+				expandedTargets = append(expandedTargets, inferredTargets...)
+			}
+		} else {
+			expandedTargets = append(expandedTargets, t)
+		}
+	}
+
+	// Generate checks of unique targets (target + assettype + options)
+	uniq := map[string]interface{}{}  // controls duplicates
+	dedupTargets := []config.Target{} // new list of unique targets
+	for _, a := range expandedTargets {
+		f := ComputeFingerprint(a)
+		if _, ok := uniq[f]; ok {
+			l.Debugf("Skipping duplicated target %v", a)
+		} else {
+			dedupTargets = append(dedupTargets, a)
+			uniq[f] = nil
+			AddAssetChecks(cfg, a, l)
+		}
+	}
+	cfg.Targets = dedupTargets
+	return nil
+}
+
+func ComputeFingerprint(args ...interface{}) string {
+	h := sha256.New()
+
+	for _, a := range args {
+		fmt.Fprintf(h, " - %v", a)
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func AddAssetChecks(cfg *config.Config, a config.Target, l log.Logger) error {
 	checks := []config.Check{}
 	for ref, ch := range cfg.CheckTypes {
 		if stringInSlice(a.AssetType, ch.Assets) && filterChecktype(ch.Name, cfg.Conf.IncludeR, cfg.Conf.ExcludeR) {

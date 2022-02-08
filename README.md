@@ -18,9 +18,11 @@ An example file is provided in [vulcan.yaml](./vulcan.yaml).
 
 The main sections are:
 
-- variables: Some config vars sent to the checks, i.e. to allow access to private resources.
-- repositories: http or file uris pointing to checktype definitions.
-- checks: The list of specific checks to run.
+- conf/vars: Some config vars sent to the checks, i.e. to allow access to private resources.
+- conf/repositories: http or file uris pointing to checktype definitions.
+- targets: Contains the list of targets to scan. The tool will generate all the possible checks from the checktypes available.
+- checks: The list of additional specific checks to run.
+- reporting: Configuration about how to show the results, exclusions, ...
 
 This is a very simple config file with two checks:
 
@@ -30,6 +32,12 @@ conf:
     # A local checktype uri
     default: file://./script/checktypes-stable.json
 
+# List of targets to scan generating checks from all available checktypes 
+targets:
+  - target: .
+  - target: http://localhost:1234/
+
+# List of specific checks to run
 checks:
   # Check current path
   - type: vulcan-seekret
@@ -38,6 +46,9 @@ checks:
   # Check with default options
   - type: vulcan-zap
     target: http://localhost:1234
+
+reporting:
+
 ```
 
 ## Executing
@@ -71,7 +82,7 @@ Usage of out/vulcan-local:
   -l string
     	log level (panic, fatal, error, warn, info, debug) (default "info")
   -o string
-    	Options related to the asset (-t) used in all the their checks (i.e. '{"depth":"1", "max_scan_duration": 1}' )
+    	options related to the target (-t) used in all the their checks (i.e. '{"depth":"1", "max_scan_duration": 1}')
   -r string
     	results file (i.e. -r results.json)
   -s string

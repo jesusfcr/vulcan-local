@@ -15,13 +15,21 @@ conf:
     default: file://${TRAVIS_BUILD_DIR:-.}/script/checktypes-stable.json
 
     # Those with the exp prefix (i.e.  default/vulcan-seekret-experimental)
-    exp: https://jesusfcr.github.io/vulcan-checks/checktypes@publish.json
+    # exp: https://jesusfcr.github.io/vulcan-checks/checktypes@publish.json
 
   # *Always*, Never, IfNotPresent
   pullPolicy: IfNotPresent
 
   # Number of checks to run concurrently
   concurrency: 5
+
+targets:
+
+  - target: http://localhost:1234/
+    options:
+      max_scan_duration: 1
+
+  - target: .
 
 checks:
 
@@ -53,8 +61,8 @@ checks:
     target: containers.mpi-internal.com/vulcan-checks/vulcan-exposed-http-resources:405
 
   # Check experimental over the current path
-  - type: exp/vulcan-seekret-experimental
-    target: ${TRAVIS_BUILD_DIR:-.}
+  # - type: exp/vulcan-seekret-experimental
+  #   target: ${TRAVIS_BUILD_DIR:-.}
 
 reporting:
   format: json
